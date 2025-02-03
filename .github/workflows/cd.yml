@@ -1,4 +1,4 @@
-name: CD: Docker Push
+name: "Docker Push"
 
 on:
   push:
