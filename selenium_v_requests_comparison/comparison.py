@@ -71,6 +71,9 @@ def install_chrome_if_needed() -> None:
     Exits if Chrome is not found.
     """
     global IS_CHROME_INSTALLED, CHROME_EXECUTABLE_PATH
+    # Reset global state before checking
+    IS_CHROME_INSTALLED = False
+    CHROME_EXECUTABLE_PATH = r"chrome_installer.exe"
     logging.debug("Searching for Chrome binary...")
     chrome_path = find_chrome_binary()
     if chrome_path:
@@ -170,12 +173,6 @@ def measure_selenium(selenium_url: str) -> float:
 
 
 def main():
-    """
-    Entry point for the comparison tool.
-    Runs the performance tests using Requests and Selenium,
-    then generates a boxplot comparing the execution times.
-    """
-    # Move argument parsing and logging configuration into main()
     import argparse
 
     parser = argparse.ArgumentParser(description="Run performance comparison.")
@@ -183,12 +180,8 @@ def main():
     args = parser.parse_args()
 
     if args.debug:
-        import logging
-
         logging.basicConfig(level=logging.DEBUG)
     else:
-        import logging
-
         logging.basicConfig(level=logging.INFO)
 
     # Ensure Chrome is installed before running tests
@@ -206,7 +199,6 @@ def main():
         requests_text_times.append(measure_requests(SELENIUM_URL))
         selenium_text_times.append(measure_selenium(SELENIUM_URL))
 
-    # Generate and save a boxplot comparing the results
     import matplotlib.pyplot as plt
 
     plt.boxplot(
