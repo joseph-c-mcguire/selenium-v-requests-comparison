@@ -9,6 +9,7 @@ description = "A comparison of performance between Selenium and Requests."
 authors = [
     { name = "Joseph McGuire", email = "joseph.c.mcg@gmail.com" }
 ]
+urls = { "Repository" = "https://github.com/joseph-c-mcguire/selenium-v-requests-comparison" }
 dependencies = [
     "attrs==25.1.0",
     "certifi==2025.1.31",

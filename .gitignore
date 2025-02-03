@@ -173,3 +173,4 @@ cython_debug/
 # Project-specific settings
 *.exe
 .vscode/
+comparison_boxplot.png

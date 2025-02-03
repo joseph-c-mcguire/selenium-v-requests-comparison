@@ -1,8 +1,24 @@
+"""
+Comparison Tool between Selenium and Requests
+------------------------------------------------
+This script measures the performance of fetching data using the 'requests'
+library and Selenium. It collects execution times for API and a JavaScript 
+rendered webpage, then generates a boxplot to compare the results.
+
+Usage:
+    python comparison.py [--debug]
+
+Ensure Google Chrome is installed for Selenium to work.
+"""
+
 import time
 import requests
-import subprocess
 import logging
 import argparse
+import os  # Added to check for Chrome binary
+import tempfile  # Added for temporary user data dir
+import shutil  # Added for cleaning up the temporary directory
+import socket  # Added for free port lookup
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -21,114 +37,187 @@ if args.debug:
 else:
     logging.basicConfig(level=logging.INFO)
 
-# URL for a JavaScript-heavy website (example: LinkedIn job search)
-API_URL = "https://catfact.ninja/fact"
-SELENIUM_URL = "https://example.com"
+# URL for endpoints and global configuration:
+# API_URL: Endpoint for data via Requests.
+# SELENIUM_URL: URL of a JavaScript-heavy page for Selenium tests.
+API_URL = r"https://catfact.ninja/fact"
+SELENIUM_URL = r"https://example.com"
+BOXPLOT_FILENAME = "comparison_boxplot.png"
+# Define the path to the Chrome binary
+CHROME_EXECUTABLE_PATH = r"chrome_installer.exe"
+# Define a list of default Chrome binary locations
+CHROME_BINARY_LOCATIONS = [
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+]
+# Define a global flag to cache the chrome installation status
+IS_CHROME_INSTALLED = True
+# Number of times to run the experiments
+EXPERIMENT_COUNT = 5
 
-CHROME_EXECUTABLE_PATH = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+
+# New function to look up the Chrome binary
+def find_chrome_binary() -> str:
+    """
+    Finds the Chrome binary in default locations or via PATH.
+
+    Returns:
+        str: Chrome binary path if found; otherwise an empty string.
+    """
+
+    for path in CHROME_BINARY_LOCATIONS:
+        if os.path.exists(path):
+            return path
+    chrome = shutil.which("chrome")
+    if chrome:
+        return chrome
+    return ""
+
+
+def install_chrome_if_needed() -> None:
+    """
+    Finds and verifies the presence of the Chrome binary.
+
+    Updates global variables CHROME_EXECUTABLE_PATH and IS_CHROME_INSTALLED.
+    Exits if Chrome is not found.
+    """
+    global IS_CHROME_INSTALLED, CHROME_EXECUTABLE_PATH
+    logging.debug("Searching for Chrome binary...")
+    chrome_path = find_chrome_binary()
+    if chrome_path:
+        CHROME_EXECUTABLE_PATH = chrome_path
+        IS_CHROME_INSTALLED = True
+        logging.debug(f"Found Chrome at {CHROME_EXECUTABLE_PATH}")
+    else:
+        IS_CHROME_INSTALLED = False
+        logging.error("No Chrome binary found. Please install Chrome manually.")
+        exit(1)
 
 
 def measure_requests(api_url):
     """
-    Measures the time taken to fetch data using the requests library.
+    Measures and returns the execution time for fetching data using the requests library.
+
     Args:
-        api_url (str): The URL of the API endpoint to fetch data from.
+        api_url (str): The API endpoint URL.
+
     Returns:
-        float: The time taken to fetch the data in seconds.
+        float: Duration in seconds.
     """
     logging.debug("Starting measure_requests...")
-    """Measures the time taken to fetch data using the requests library."""
+    # Start time measurement
     start_time = time.time()
     response = requests.get(api_url)
     end_time = time.time()
-
+    # Log response status code for debugging
     logging.debug(f"API response status code: {response.status_code}")
     if response.status_code == 200:
         print("API response received successfully.")
     else:
         print("Failed to fetch API data.")
-
     logging.debug("Finished measure_requests.")
     return end_time - start_time
 
 
-def install_chrome_if_needed() -> None:
+def get_free_port() -> int:
     """
-    Checks if Google Chrome is installed on the system. If Chrome is not found, it downloads and installs the latest version.
+    Returns a free port on localhost.
 
-    The function attempts to run 'chrome --version' to check for Chrome's presence. If this command fails, it assumes Chrome is not installed and proceeds to:
-    1. Download the Chrome installer from the official Google Chrome website.
-    2. Save the installer to a file named 'chrome_installer.exe'.
-    3. Run the installer silently to install Chrome.
-
-    Logging is used to provide debug information about the process.
+    Useful for assigning a unique remote debugging port for each Selenium session.
     """
-    logging.debug("Checking if Chrome is installed...")
-    """Check if Chrome is installed; if not, download and install it."""
-    # Attempt to run 'chrome --version'. If this fails, assume Chrome is not installed.
-    try:
-        subprocess.run(
-            [CHROME_EXECUTABLE_PATH, "--version"], check=True, capture_output=True
-        )
-    except:
-        logging.debug("Chrome not found. Downloading and installing now...")
-        print("Chrome not found. Downloading and installing now...")
-        installer_path = "chrome_installer.exe"
-        url = "https://dl.google.com/chrome/install/latest/chrome_installer.exe"
-        # Download the installer
-        with open(installer_path, "wb") as f:
-            f.write(requests.get(url).content)
-        # Run the installer silently (user may need to accept dialogs)
-        subprocess.run([installer_path, "/silent", "/install"])
-    logging.debug("Chrome installation check complete.")
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
 
 
 def measure_selenium(selenium_url: str) -> float:
     """
-    Measures the time taken to fetch data using Selenium.
+    Measures and returns the time to fetch data using Selenium.
+
+    Uses a temporary user-data-dir and a free remote debugging port to avoid conflicts.
+
     Args:
-        selenium_url (str): The URL to be fetched using Selenium.
+        selenium_url (str): The webpage URL to load via Selenium.
+
     Returns:
-        float: The time taken to fetch the data in seconds.
+        float: Duration in seconds.
     """
     logging.debug("Starting measure_selenium...")
-    """Measures the time taken to fetch data using Selenium."""
-    install_chrome_if_needed()
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Run in headless mode to speed up execution
-    options.binary_location = CHROME_EXECUTABLE_PATH
+    options.add_argument("--headless")  # Run in headless mode
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")  # Disable GPU to mitigate encoding issues
+    options.add_argument(
+        "--disable-features=MediaFoundationVideoEncodeAccelerator"
+    )  # Disable MediaFoundation video encode
+    # Use a temporary directory for Chrome user profile to avoid conflicts
+    with tempfile.TemporaryDirectory() as temp_profile_dir:
+        options.add_argument(f"--user-data-dir={temp_profile_dir}")
+        free_port = get_free_port()
+        options.add_argument(f"--remote-debugging-port={free_port}")
+        if IS_CHROME_INSTALLED:
+            options.binary_location = CHROME_EXECUTABLE_PATH
+        else:
+            logging.warning(
+                f"Chrome binary not found at {CHROME_EXECUTABLE_PATH}, using default system path."
+            )
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        logging.debug("Chrome WebDriver initialized.")
 
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
-    logging.debug("Chrome WebDriver initialized.")
-
-    start_time = time.time()
-    driver.get(selenium_url)
-    time.sleep(5)  # Wait for JavaScript to load
-    job_titles = driver.find_elements(By.CLASS_NAME, "job-card-list__title")
-
-    end_time = time.time()
-    driver.quit()
-
+        # Measure page load time
+        start_time = time.time()
+        driver.get(selenium_url)
+        time.sleep(5)  # Allow JavaScript to execute
+        job_titles = driver.find_elements(By.CLASS_NAME, "job-card-list__title")
+        end_time = time.time()
+        driver.quit()
     logging.debug(f"Scraped {len(job_titles)} job listings using Selenium.")
     logging.debug("Finished measure_selenium.")
     return end_time - start_time
 
 
-# Collect execution times
-requests_api_times = []
-selenium_api_times = []
-requests_text_times = []
-selenium_text_times = []
+def main():
+    """
+    Entry point for the comparison tool.
+    Runs the performance tests using Requests and Selenium,
+    then generates a boxplot comparing the execution times.
+    """
+    # Ensure Chrome is installed before running tests
+    install_chrome_if_needed()
 
-for _ in range(5):
-    requests_api_times.append(measure_requests(API_URL))
-    selenium_api_times.append(measure_selenium(API_URL))
-    requests_text_times.append(measure_requests(SELENIUM_URL))
-    selenium_text_times.append(measure_selenium(SELENIUM_URL))
+    # Collect and compare execution times
+    requests_api_times = []
+    selenium_api_times = []
+    requests_text_times = []
+    selenium_text_times = []
 
-plt.boxplot(
-    [requests_api_times, selenium_api_times, requests_text_times, selenium_text_times],
-    labels=["API - Requests", "API - Selenium", "Text - Requests", "Text - Selenium"],
-)
-plt.savefig("comparison_boxplot.png")
+    for _ in range(EXPERIMENT_COUNT):
+        requests_api_times.append(measure_requests(API_URL))
+        selenium_api_times.append(measure_selenium(API_URL))
+        requests_text_times.append(measure_requests(SELENIUM_URL))
+        selenium_text_times.append(measure_selenium(SELENIUM_URL))
+
+    # Generate and save a boxplot comparing the results
+    plt.boxplot(
+        [
+            requests_api_times,
+            selenium_api_times,
+            requests_text_times,
+            selenium_text_times,
+        ],
+        tick_labels=[
+            "API - Requests",
+            "API - Selenium",
+            "Text - Requests",
+            "Text - Selenium",
+        ],
+    )
+    plt.savefig(BOXPLOT_FILENAME)
+
+
+if __name__ == "__main__":
+    main()
