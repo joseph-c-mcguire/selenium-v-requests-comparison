@@ -22,12 +22,10 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 # URL for a JavaScript-heavy website (example: LinkedIn job search)
-api_url = "https://catfact.ninja/fact"
-selenium_url = "https://example.com"
-cat_fact_api_url = "https://catfact.ninja/fact"
-random_dog_image_api_url = "https://dog.ceo/api/breeds/image/random"
+API_URL = "https://catfact.ninja/fact"
+SELENIUM_URL = "https://example.com"
 
-chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+CHROME_EXECUTABLE_PATH = "C:/Program Files/Google/Chrome/Application/chrome.exe"
 
 
 def measure_requests(api_url):
@@ -69,7 +67,9 @@ def install_chrome_if_needed() -> None:
     """Check if Chrome is installed; if not, download and install it."""
     # Attempt to run 'chrome --version'. If this fails, assume Chrome is not installed.
     try:
-        subprocess.run([chrome_path, "--version"], check=True, capture_output=True)
+        subprocess.run(
+            [CHROME_EXECUTABLE_PATH, "--version"], check=True, capture_output=True
+        )
     except:
         logging.debug("Chrome not found. Downloading and installing now...")
         print("Chrome not found. Downloading and installing now...")
@@ -96,7 +96,7 @@ def measure_selenium(selenium_url: str) -> float:
     install_chrome_if_needed()
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")  # Run in headless mode to speed up execution
-    options.binary_location = chrome_path
+    options.binary_location = CHROME_EXECUTABLE_PATH
 
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -116,14 +116,19 @@ def measure_selenium(selenium_url: str) -> float:
 
 
 # Collect execution times
-requests_times = []
-selenium_times = []
-for _ in range(5):
-    requests_times.append(measure_requests(api_url))
-    selenium_times.append(measure_selenium(selenium_url))
+requests_api_times = []
+selenium_api_times = []
+requests_text_times = []
+selenium_text_times = []
 
-# Generate and save box-and-whisker plot
+for _ in range(5):
+    requests_api_times.append(measure_requests(API_URL))
+    selenium_api_times.append(measure_selenium(API_URL))
+    requests_text_times.append(measure_requests(SELENIUM_URL))
+    selenium_text_times.append(measure_selenium(SELENIUM_URL))
+
 plt.boxplot(
-    [requests_times, selenium_times], labels=["Requests API", "Selenium Website"]
+    [requests_api_times, selenium_api_times, requests_text_times, selenium_text_times],
+    labels=["API - Requests", "API - Selenium", "Text - Requests", "Text - Selenium"],
 )
 plt.savefig("comparison_boxplot.png")
