@@ -214,7 +214,9 @@ def main():
         "Text - Requests",
         "Text - Selenium",
     ]
-    bp = plt.boxplot(groups, tick_label=tick_labels, patch_artist=True)
+    bp = plt.boxplot(
+        groups, labels=tick_labels, patch_artist=True
+    )  # Changed from tick_label to labels
 
     # Set a title and axis labels
     plt.title("Comparison of Performance Metrics")
