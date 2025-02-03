@@ -200,21 +200,41 @@ def main():
         selenium_text_times.append(measure_selenium(SELENIUM_URL))
 
     import matplotlib.pyplot as plt
+    import numpy as np  # Added for calculations
 
-    plt.boxplot(
-        [
-            requests_api_times,
-            selenium_api_times,
-            requests_text_times,
-            selenium_text_times,
-        ],
-        tick_labels=[
-            "API - Requests",
-            "API - Selenium",
-            "Text - Requests",
-            "Text - Selenium",
-        ],
-    )
+    groups = [
+        requests_api_times,
+        selenium_api_times,
+        requests_text_times,
+        selenium_text_times,
+    ]
+    tick_labels = [
+        "API - Requests",
+        "API - Selenium",
+        "Text - Requests",
+        "Text - Selenium",
+    ]
+    bp = plt.boxplot(groups, tick_label=tick_labels, patch_artist=True)
+
+    # Set a title and axis labels
+    plt.title("Comparison of Performance Metrics")
+    plt.xlabel("Method")
+    plt.ylabel("Time (seconds)")
+
+    # Annotate each group with mean and standard deviation
+    for i, group in enumerate(groups, start=1):
+        mean_val = np.mean(group)
+        std_val = np.std(group)
+        plt.text(
+            i,
+            mean_val,
+            f"mean: {mean_val:.2f}\nstd: {std_val:.2f}",
+            horizontalalignment="center",
+            verticalalignment="bottom",
+            fontsize=8,
+            color="blue",
+        )
+
     plt.savefig(BOXPLOT_FILENAME)
 
 
