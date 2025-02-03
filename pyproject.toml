@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "selenium_v_requests_comparison"
 version = "1.0.0"
+requires-python = ">=3.11.9"  # Added Python version requirement
 description = "A comparison of performance between Selenium and Requests."
 authors = [
     { name = "Joseph McGuire", email = "joseph.c.mcg@gmail.com" }
@@ -16,7 +17,7 @@ dependencies = [
     "cffi==1.17.1",
     "charset-normalizer==3.4.1",
     "colorama==0.4.6",
-    "contourpy==1.3.0",
+    "contourpy==1.3.1",
     "cycler==0.12.1",
     "fonttools==4.55.8",
     "h11==0.14.0",
