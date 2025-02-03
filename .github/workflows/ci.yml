@@ -25,12 +25,12 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pytest --cov-branch --cov-report=xml
+          pytest --cov=selenium_v_requests_comparison --cov-branch --cov-report=xml
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: joseph-c-mcguire/selenium-v-requests-comparison
-    
-      
-      
+
+
+
